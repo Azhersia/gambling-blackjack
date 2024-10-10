@@ -1,101 +1,152 @@
-import Image from "next/image";
+"use client";
+import { useState, useEffect } from "react";
+import RandomCard from "./components/RandomCard";
+
+const initialDeck = [
+  "2H", "3H", "4H", "5H", "6H", "7H", "8H", "9H", "10H",
+  "JH", "QH", "KH", "AH", "2D", "3D", "4D", "5D", "6D",
+  "7D", "8D", "9D", "10D", "JD", "QD", "KD", "AD", "2C",
+  "3C", "4C", "5C", "6C", "7C", "8C", "9C", "10C", "JC",
+  "QC", "KC", "AC", "2S", "3S", "4S", "5S", "6S", "7S",
+  "8S", "9S", "10S", "JS", "QS", "KS", "AS"
+];
+
+// Get the value of a card, removing the suit and converting faces to values
+function getCardValue(card: string) {
+  const rank = card.slice(0, -1); // Extract rank (value) from card
+  if (rank === 'A') return 11; // Consider Ace as 11
+  if (['K', 'Q', 'J'].includes(rank)) return 10; // Face cards worth 10
+  return parseInt(rank); // Return the number value for others
+}
+
+// Calculate the total value of a hand of cards
+function calculateHandValue(handCards: string[]): number {
+  let total = 0;
+  let aceCount = 0;
+
+  // Calculate the total value and count Aces
+  for (const card of handCards) {
+    const value = getCardValue(card);
+    total += value;
+
+    if (value === 11) {
+      aceCount++; // Count how many Aces are in the hand
+    }
+  }
+
+  // Adjust for Aces if total exceeds 21
+  while (total > 21 && aceCount > 0) {
+    total -= 10; // Convert one Ace from 11 to 1
+    aceCount--;   // Reduce the count of Aces
+  }
+
+  return total;
+}
+
+// Function to draw a random card from the deck
+function drawRandomCard(deck: string[]) {
+  const randomIndex = Math.floor(Math.random() * deck.length);
+  const card = deck[randomIndex];
+  const updatedDeck = [...deck];
+  updatedDeck.splice(randomIndex, 1); // Remove the drawn card from the deck
+  return { card, updatedDeck };
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [deck, setDeck] = useState<string[]>(initialDeck); // Current deck of cards
+  const [playerCards, setPlayerCards] = useState<string[]>([]); // Player's cards
+  const [dealerCards, setDealerCards] = useState<string[]>([]); // Dealer's cards
+  const [dealerTotal, setDealerTotal] = useState(0); // Dealer's total
+  const [playerTotal, setPlayerTotal] = useState(0); // Player's total
+  const [gameActive, setGameActive] = useState(true); // New state to control game status
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    let currentDeck = [...deck];
+
+    // Draw 2 cards for the player
+    const newPlayerCards = [];
+    for (let i = 0; i < 2; i++) {
+      const { card, updatedDeck } = drawRandomCard(currentDeck);
+      newPlayerCards.push(card);
+      currentDeck = updatedDeck;
+    }
+
+    // Draw 2 cards for the dealer
+    const newDealerCards = [];
+    for (let i = 0; i < 2; i++) {
+      const { card, updatedDeck } = drawRandomCard(currentDeck);
+      newDealerCards.push(card);
+      currentDeck = updatedDeck;
+    }
+
+    // Update the hands and deck in state
+    setPlayerCards(newPlayerCards);
+    setDealerCards(newDealerCards);
+    setDeck(currentDeck);
+
+    // Calculate initial totals
+    const initialPlayerTotal = calculateHandValue(newPlayerCards);
+    const initialDealerTotal = calculateHandValue(newDealerCards);
+    setPlayerTotal(initialPlayerTotal);
+    setDealerTotal(initialDealerTotal);
+
+    // Check for blackjack or bust on initial draw
+    if (initialPlayerTotal === 21) {
+      setGameActive(false); // Freeze the game
+    }
+  }, []); // Run this once when the component mounts
+
+  const handleHit = () => {
+    if (!gameActive) return; // Prevent further action if the game is frozen
+
+    const { card, updatedDeck } = drawRandomCard(deck);
+    setDeck(updatedDeck);
+    setPlayerCards((prevCards) => [...prevCards, card]);
+    const newPlayerTotal = calculateHandValue([...playerCards, card]);
+    setPlayerTotal(newPlayerTotal);
+
+    // Check for blackjack or bust after the hit
+    if (newPlayerTotal === 21 || newPlayerTotal > 21) {
+      setGameActive(false); // Freeze the game
+    }
+  };
+
+  return (
+    <div className="flex justify-center items-center flex-col min-h-screen">
+      <div className="flex justify-center items-center flex-col gap-32">
+        <div className="flex justify-center items-center flex-col gap-10">
+          <div className="flex justify-center items-center gap-3">
+            {dealerCards.length > 0 && (
+              <>
+                <RandomCard card={dealerCards[0]} />
+                <RandomCard card={dealerCards[1]} />
+              </>
+            )}
+          </div>
+          <p>{dealerTotal}</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+            {!gameActive && <p className="text-xl">{playerTotal === 21 ? "Blackjack!" : "You bust!"}</p>}
+        <div className="flex justify-center items-center flex-col gap-10">
+          <h1>{playerTotal}</h1>
+          <div className="flex justify-center items-center gap-3">
+            {playerCards.length > 0 && (
+              <>
+                <RandomCard card={playerCards[0]} />
+                <RandomCard card={playerCards[1]} />
+                {/* Display additional player cards if they exist */}
+                {playerCards.slice(2).map((card, index) => (
+                  <RandomCard key={index} card={card} />
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="mt-10 flex justify-center items-center gap-10 flex-row">
+        <button onClick={handleHit} disabled={!gameActive}>Hit</button>
+        <button disabled={!gameActive}>Stand</button>
+      </div>
     </div>
   );
 }
